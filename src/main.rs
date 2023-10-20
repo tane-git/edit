@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Read the contents of the current directory
     let entries = fs::read_dir(&current_dir)?;
     // Collect the entries into a vector of strings
-    let items: Vec<String> = entries
+    let mut items: Vec<String> = entries
         .filter_map(|entry| {
             entry
                 .ok()
@@ -100,6 +100,29 @@ fn main() -> Result<(), Box<dyn Error>> {
                     // You can implement file editing or other actions here
                 }
             }
+            'a' => {
+                print!("Add file: ");
+                io::stdout().flush().unwrap();
+                
+                // Read the file name from the user
+                let mut file_name = String::new();
+                io::stdin().read_line(&mut file_name).unwrap();
+                let file_name = file_name.trim();
+                
+                // Create the file in the current directory
+                let path = current_dir.join(file_name);
+                fs::File::create(&path).unwrap();
+                
+                // Refresh the list of files
+                let entries = fs::read_dir(&current_dir)?;
+                items = entries
+                    .filter_map(|entry| {
+                        entry
+                            .ok()
+                            .and_then(|entry| entry.file_name().into_string().ok())
+                    })
+                    .collect();
+                }
             _ => {}
         }
     }
