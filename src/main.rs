@@ -3,6 +3,7 @@ use std::error::Error;
 use std::fs;
 use std::io::{self, Read};
 use std::process::Command;
+use std::io::Write;
 
 fn get_terminal_settings() -> Result<Termios, std::io::Error> {
     let fd = 0; // This is the file descriptor for stdin
@@ -44,12 +45,14 @@ impl Drop for RawTerminal {
         // We intentionally don't care if this call fails here because
         // this is our last-ditch effort to reset the terminal.
         let _ = reset_terminal_settings(&self.original_settings);
+        show_cursor();
     }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     // This will set the terminal to raw mode
     let _raw_terminal = RawTerminal::new()?;
+    hide_cursor();
 
     // Get the current directory
     let current_dir = std::env::current_dir()?;
@@ -104,5 +107,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     // No need to explicitly reset terminal settings here, as it will
     // be done automatically when _raw_terminal goes out of scope.
     Ok(())
+}
+
+fn hide_cursor() {
+    print!("\x1B[?25l"); // This is the escape code to hide the cursor
+    io::stdout().flush().unwrap(); // Ensure the print! output is flushed
+}
+
+fn show_cursor() {
+    print!("\x1B[?25h"); // This is the escape code to show the cursor
+    io::stdout().flush().unwrap(); // Ensure the print! output is flushed
 }
 
