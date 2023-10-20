@@ -1,7 +1,7 @@
 use termios::*;
 use std::error::Error;
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::process::Command;
 
 fn get_terminal_settings() -> Result<Termios, std::io::Error> {
@@ -27,9 +27,29 @@ fn read_single_key() -> io::Result<char> {
     Ok(buf[0] as char)
 }
 
+struct RawTerminal {
+    original_settings: Termios,
+}
+
+impl RawTerminal {
+    fn new() -> Result<Self, std::io::Error> {
+        let original_settings = get_terminal_settings()?;
+        set_raw_mode(&original_settings)?;
+        Ok(RawTerminal { original_settings })
+    }
+}
+
+impl Drop for RawTerminal {
+    fn drop(&mut self) {
+        // We intentionally don't care if this call fails here because
+        // this is our last-ditch effort to reset the terminal.
+        let _ = reset_terminal_settings(&self.original_settings);
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
-    let original_settings = get_terminal_settings()?;
-    set_raw_mode(&original_settings)?;
+    // This will set the terminal to raw mode
+    let _raw_terminal = RawTerminal::new()?;
 
     // Get the current directory
     let current_dir = std::env::current_dir()?;
@@ -81,30 +101,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // Reset terminal settings before exiting
-    reset_terminal_settings(&original_settings)?;
-
+    // No need to explicitly reset terminal settings here, as it will
+    // be done automatically when _raw_terminal goes out of scope.
     Ok(())
-}
-
-// Todo: use this:
-struct RawTerminal {
-    original_settings: Termios,
-}
-
-impl RawTerminal {
-    fn new() -> Result<Self, std::io::Error> {
-        let original_settings = get_terminal_settings()?;
-        set_raw_mode(&original_settings)?;
-        Ok(RawTerminal { original_settings })
-    }
-}
-
-impl Drop for RawTerminal {
-    fn drop(&mut self) {
-        // We intentionally don't care if this call fails here because
-        // this is our last-ditch effort to reset the terminal.
-        let _ = reset_terminal_settings(&self.original_settings);
-    }
 }
 
